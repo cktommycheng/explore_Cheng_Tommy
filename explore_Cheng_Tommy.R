@@ -24,8 +24,12 @@ is.binary <- function(v) {
 #Input: dataframe 
 #Output = table of factor class
 freq_table <- function(data) {
-  lapply(data[, sapply(data,is.factor)], table)   #prints out the freqency table 
+  categoricals <- sapply(data, function(x) (is.factor(x) || is.logical(x))) #find categorical columns
+  data <- data[,categoricals] #categorical-only subset of data
+  tables <- sapply(data, function(x) summary(x)) #get frequency counts of each factor
+  return(tables)   #prints out the freqency table 
 }
+
 
 
 #The printSummary function prints out the  a summary table of a dataframe
@@ -159,8 +163,9 @@ numeric_plot <- function(data, plot_switch, binVec) {
       count_plots <- list()             #Create a empty list to store the count histogram subplots of each bin size
       density_plots <- list()           #Create a empty list to store the density histograms subplots of each bin size
       if(missing(binVec)){              #This takes of the case when the vector is null, prints histogram with default bins 30
-        print(ggplot(data, aes_string(name), color = "blue") + geom_histogram(fill="blue")+ labs(title= "default bins"))
-        print(ggplot(data, aes_string(name), color = "blue") + geom_histogram(aes(y= ..density..), fill="blue")+ labs(title= "default bins"))
+        plot5 <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(fill="blue")+ labs(title= "default bins")
+        plot6 <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(aes(y= ..density..), fill="blue")+ labs(title= "default bins")
+        multiplot(plot5, plot6, cols = 1)
       }else{                            #This takes care of the case when the user enters a vector
         for(i in 1:length(binVec)) {    #loop through each bin size and create a subplot
           k <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(fill="blue", bins = binVec[i])+ labs(title= paste(binVec[i], "bins"))
