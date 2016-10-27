@@ -24,7 +24,10 @@ is.binary <- function(v) {
 #Input: dataframe 
 #Output = table of factor class
 freq_table <- function(data) {
-  lapply(data[, sapply(data,is.factor)], table)   #prints out the freqency table 
+  cate_binary <- sapply(data, function(x) ( is.factor(x) || is.logical(x) ||is.binary(x)) ) #find categorical columns
+  data <- data[,cate_binary] #categorical-only subset of data
+  tables <- sapply(data, function(x) summary(x)) #get frequency counts of each factor
+  return(tables)   #prints out the freqency table 
 }
 
 
@@ -76,19 +79,11 @@ abs_pearson <- function(dataset, threshold){
 #Ouput: the combination of column names and their R-square values 
 find_Rsquare<- function(data){
   num <- sapply(data, is.numeric)       #check to see if columns are numeric
-  new_data <- data[,num]      #create a new dataframe to store the numeric columns 
-  names <- colnames(new_data)     #create vector to store the numeric colnames 
-  combonames <- combn(names, 2)   #find all the combinations of any 2 col names 
-  combo <- combn(length(colnames(new_data)), 2)   #find all the combination of the indices of the colnames
-  variable <- paste(combonames[1,], combonames[2,], sep = '-')  #create vector to store the variables combinations
-  Rsquare <- c()    #create empty vectors to store Rsquare value
-  
-  for(i in 1:length(variable)){                       
-    regression <- paste0(combonames[1,i], " ~ ", combonames[2,i])     #maunally type in the regression formula to avoid input a list in lm() function
-    r1 <- summary( lm(as.formula(regression), data=new_data) )$r.squared      #extract r square values
-    Rsquare[i] <- r1                                          
-  }
-  return(data.frame(variable, Rsquare))    #combine as dataframe
+  numeric_data <- data[,num]      #create a new dataframe to store the numeric columns 
+  combos <- combn(colnames(numeric_data), 2)
+  pairs <- paste(combos[1,], combos[2,], sep = '~')
+  r_sq <- unname(sapply(pairs, function(x) summary(lm(x, data = numeric_data))$r.squared))
+  return(data.frame("Variables" = pairs, "R-Square" = r_sq))
 }
 
 
@@ -159,17 +154,20 @@ numeric_plot <- function(data, plot_switch, binVec) {
       count_plots <- list()             #Create a empty list to store the count histogram subplots of each bin size
       density_plots <- list()           #Create a empty list to store the density histograms subplots of each bin size
       if(missing(binVec)){              #This takes of the case when the vector is null, prints histogram with default bins 30
+        m <- lapply(data[name], mean)
         print(ggplot(data, aes_string(name), color = "blue") + geom_histogram(fill="blue")+ labs(title= "default bins"))
-        print(ggplot(data, aes_string(name), color = "blue") + geom_histogram(aes(y= ..density..), fill="blue")+ labs(title= "default bins"))
+        print(ggplot(data, aes_string(name), color = "blue") + geom_histogram(aes(y= ..density..), fill="blue")+ labs(title= "default bins"))+ geom_vline(xintercept = m[[1]], colour="red")
       }else{                            #This takes care of the case when the user enters a vector
         for(i in 1:length(binVec)) {    #loop through each bin size and create a subplot
-        k <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(fill="blue", bins = binVec[i])+ labs(title= paste(binVec[i], "bins"))
-        count_plots[[i]] <- k           #Push each subplot to a list 
+          m <- lapply(data[name], mean)
+          k <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(fill="blue", bins = binVec[i])+ labs(title= paste(binVec[i], "bins"))+ geom_vline(xintercept = m[[1]], colour="red")
+          count_plots[[i]] <- k           #Push each subplot to a list 
         }
         multiplot(plotlist = count_plots, cols = 2)     
       
         for(i in 1:length(binVec)) {    #loop through each bin size and create a subplot
-          k <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(aes(y= ..density..), fill="blue", bins = binVec[i])+ labs(title= paste(binVec[i], "bins"))
+          m <- lapply(data[name], mean)
+          k <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(aes(y= ..density..), fill="blue", bins = binVec[i])+ labs(title= paste(binVec[i], "bins"))+ geom_vline(xintercept = m[[1]], colour="red")
           density_plots[[i]] <- k       #Push each subplot to a list
         }
         multiplot(plotlist = density_plots, cols = 2)
@@ -205,7 +203,8 @@ explore <- function(dataframe, plot_switch, thres, binVec){
     print("Your input is not a dataframe ")
     print("Choose your a new csv or txt file ")
     file1 <- file.choose()
-    dataframe <- read.csv(file1, header = T)
+    dataframe <- read(file1, header = T)
+    dataframe <- as.data.frame(dataframe)
   }
   
   button <- plot_switch
@@ -243,7 +242,6 @@ explore <- function(dataframe, plot_switch, thres, binVec){
     binVec <- round(binVec)
   }
   
-  
   new_dataframe <- freq_table(dataframe)
   allSummary <- printSummary(dataframe)
   Coeff_table <- pearson(dataframe)
@@ -253,12 +251,12 @@ explore <- function(dataframe, plot_switch, thres, binVec){
   cata_binary_plot(dataframe, button)
   new_list <-list(new_dataframe, allSummary, Rsquare_table, AbsCoeff_table)
   return(new_list)
-
 }
 
+
 #TestCase
-explore(test_data, "grid", 0.1, c(20, 30 , 40, 50, 60))
+#jj <- explore(test_data, "grid", 0.1, c(20, 30 , 40))
 #explore(test_data, "on", 0.1, c(70, 80, 30))
 #explore(test_data, "grid", 0.2, c(38.4, 30.1))
-#explore(test_data, "hello", -100000, c(-60, -80, -900))
+explore(test_data, "hello", -100000, c(-60, -80, -900))
 #explore(c(30, 40, 50), "grid", 0.3)
