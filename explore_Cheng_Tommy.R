@@ -24,15 +24,14 @@ is.binary <- function(v) {
 #Input: dataframe 
 #Output = table of factor class
 freq_table <- function(data) {
-  categoricals <- sapply(data, function(x) (is.factor(x) || is.logical(x))) #find categorical columns
-  data <- data[,categoricals] #categorical-only subset of data
-  tables <- sapply(data, function(x) summary(x)) #get frequency counts of each factor
-  return(tables)   #prints out the freqency table 
+  categoricals <- sapply(data, function(x) (is.factor(x) || is.logical(x) || is.character(x))) #find categorical columns
+  table(data[,categoricals]) #categorical-only subset of data
+  #tables <- sapply(data, function(x) summary(x)) #get frequency counts of each factor
 }
 
 
 
-#The printSummary function prints out the  a summary table of a dataframe
+#The printSummary function prints out the a summary table of a dataframe
 #Input: dataframe
 printSummary <-function(data){
   lapply(data[, sapply(data,is.numeric)], summary)
@@ -160,15 +159,17 @@ numeric_plot <- function(data, plot_switch, binVec) {
     }
     
     if(plot_switch == "grid"){          #Case when switch is "grid"
+      m <- lapply(data[name], mean)
       count_plots <- list()             #Create a empty list to store the count histogram subplots of each bin size
       density_plots <- list()           #Create a empty list to store the density histograms subplots of each bin size
       if(missing(binVec)){              #This takes of the case when the vector is null, prints histogram with default bins 30
-        plot5 <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(fill="blue")+ labs(title= "default bins")
-        plot6 <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(aes(y= ..density..), fill="blue")+ labs(title= "default bins")
+        plot5 <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(fill="blue")+ geom_vline(xintercept = m[[1]], colour="red")+ labs(title= "default bins")
+        plot6 <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(aes(y= ..density..), fill="blue")+ geom_vline(xintercept = m[[1]], colour="red")+ labs(title= "default bins")
         multiplot(plot5, plot6, cols = 1)
       }else{                            #This takes care of the case when the user enters a vector
+        m <- lapply(data[name], mean)
         for(i in 1:length(binVec)) {    #loop through each bin size and create a subplot
-          k <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(fill="blue", bins = binVec[i])+ labs(title= paste(binVec[i], "bins"))
+          k <- ggplot(data, aes_string(name), color = "blue") + geom_histogram(fill="blue", bins = binVec[i])+ geom_vline(xintercept = m[[1]], colour="red")+ labs(title= paste(binVec[i], "bins"))
           count_plots[[i]] <- k           #Push each subplot to a list 
         }
         multiplot(plotlist = count_plots, cols = 2)     
@@ -251,10 +252,18 @@ explore <- function(dataframe, plot_switch, thres, binVec){
   
   new_dataframe <- freq_table(dataframe)
   allSummary <- printSummary(dataframe)
-  Coeff_table <- pearson(dataframe)
-  AbsCoeff_table <-abs_pearson(Coeff_table, threshold)
-  Rsquare_table <- find_Rsquare(dataframe)
-  numeric_plot(dataframe, button, binVec)
+  
+  if (sum(sapply(dataframe, is.numeric)) > 1) {   #check to see if dataframe has more than 1 column
+    Coeff_table <- pearson(dataframe)
+    AbsCoeff_table <-abs_pearson(Coeff_table, threshold)
+    Rsquare_table <- find_Rsquare(dataframe)
+    numeric_plot(dataframe, button, binVec)
+  }else{
+    Coeff_table <- NULL
+    AbsCoeff_table <- NULL
+    Rsquare_table <- NULL
+  }
+  
   cata_binary_plot(dataframe, button)
   new_list <-list(new_dataframe, allSummary, Rsquare_table, AbsCoeff_table)
   return(new_list)
@@ -262,7 +271,7 @@ explore <- function(dataframe, plot_switch, thres, binVec){
 }
 
 #TestCase
-explore(test_data, "grid", 0.1)
+print(explore(iris, "grid", 0.1))
 #explore(test_data, "on", 0.1, c(70, 80, 30))
 #explore(test_data, "grid", 0.2, c(38.4, 30.1))
 #explore(test_data, "hello", -100000, c(-60, -80, -900))
