@@ -1,6 +1,5 @@
 #Tommy Cheng 
-#MAT510 HW6
-#26 Oct 2016 
+#MAT510 explorefunction
 require(ggplot2)
 require(grid)
 
